@@ -160,7 +160,7 @@ def parse_pool_swaps(receipt: dict[str, Any]) -> list[PairSwap]:
                 int(str(log.get("logIndex", "0x0")), 16)
                 for log in receipt.get("logs", [])
                 if str(log.get("address", "")).lower() == swap.pair
-                and str(log.get("topics", [""])[0]).lower()
+                and str((log.get("topics") or [""])[0]).lower()
                 in {V2_SWAP_TOPIC, *V3_SWAP_TOPICS}
             ),
             0,

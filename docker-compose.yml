@@ -2,6 +2,8 @@ services:
   radar:
     build: .
     env_file: .env
+    environment:
+      DATABASE_URL: postgresql://radar:radar_dev_only@postgres:5432/radar
     volumes:
       - ./config:/app/config:ro
     depends_on:

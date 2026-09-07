@@ -86,6 +86,8 @@ class PostgresRepository:
                         transfer.symbol, transfer.name, transfer.decimals,
                     )
                 for pool in activity.pair_swaps:
+                    if not pool.token0 or not pool.token1:
+                        continue
                     await connection.execute(
                         """
                         INSERT INTO radar_pairs (chain,address,token0,token1,factory,protocol)
@@ -146,4 +148,3 @@ async def persist_safely(repository: PostgresRepository | None, activity: Wallet
         await repository.save_activity(activity)
     except Exception:  # noqa: BLE001
         logger.exception("Could not persist transaction %s", activity.tx_hash)
-

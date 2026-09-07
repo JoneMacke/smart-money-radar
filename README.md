@@ -54,6 +54,7 @@ docker compose up --build
 - `BSC_RPC_URL` / `BSC_WSS_URL`
 - `ROBINHOOD_RPC_URL` / `ROBINHOOD_WSS_URL`
 - `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID`（可选）
+- `DATABASE_URL`（可选；配置后启用 PostgreSQL 持久化）
 - `POLL_INTERVAL_SECONDS`（WebSocket 断线后的重试间隔）
 
 ## 说明：Solana
@@ -62,7 +63,7 @@ docker compose up --build
 
 ## 下一步
 
-V0.2 将加入 PostgreSQL 持久化、同币种多钱包聚合和信号评分；V0.3 再接入 DEX 路由解析、新币和 Dev 风控。Solana 适配器可作为后续跨链扩展加入。
+V0.2 将继续加入同币种多钱包聚合、价格估值和信号评分；Solana 适配器可作为后续跨链扩展加入。
 
 ## 历史交易解析验证
 
@@ -81,3 +82,35 @@ python -m app.main inspect-tx 0x交易哈希 --wallet test --chain bsc
 - Token symbol、decimals 和格式化后的数量
 
 BSC 的 Router、Factory 与报价币配置位于 `config/dexes.yaml`。
+
+## Telegram 告警格式
+
+BUY / SELL 告警现在使用 HTML 格式，包含：
+
+- 钱包标签与来源
+- BUY / SELL / SWAP 类型
+- action token 与报价币
+- Token 流入流出数量
+- DEX 与 Router
+- 解析置信度 / Signal Score
+- Transfer、Token metadata、DEX route、Contract identity 风险快照
+- Chart、Contract、Wallet、Transaction 快捷按钮
+
+没有价格源时不会伪造美元金额、Market Cap、Liquidity 或 Token Age；这些字段将在接入价格与风控数据源后显示。
+
+## PostgreSQL 持久化
+
+设置 `DATABASE_URL` 后，启动监听会自动创建以下表并保存：
+
+- `radar_transactions`：钱包交易与 BUY / SELL 信号
+- `radar_transfers`：ERC-20 Transfer 明细
+- `radar_tokens`：Token symbol、name、decimals
+- `radar_pairs`：Pair / Pool 的 token0、token1、Factory、协议
+- `radar_pair_swaps`：V2 / V3 Pool Swap 明细
+- `radar_signals`：历史信号分数
+
+Docker Compose 中的 PostgreSQL 默认连接串已经写入 `.env.example`。不设置 `DATABASE_URL` 时，程序仍会正常监听，只是不保存数据库。
+
+## BSC DEX 与 V3
+
+DEX 注册表位于 `config/dexes.yaml`，当前包括 PancakeSwap V2、PancakeSwap V3、Biswap V2、PancakeSwap Smart Router 与已观察到的聚合 Router。解析器支持 Uniswap-compatible / PancakeSwap V3 的 `Swap` 事件，并与现有 V2 Pair 路由统一分类。

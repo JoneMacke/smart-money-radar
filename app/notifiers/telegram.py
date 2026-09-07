@@ -44,34 +44,41 @@ def _fmt_age(minutes: int | None) -> str:
     if minutes is None:
         return "—"
     if minutes < 60:
-        return f"{minutes} 分钟 / {minutes}m"
-    if minutes < 1440:
-        hours = minutes // 60
-        return f"{hours} 小时 / {hours}h"
-    days = minutes // 1440
-    return f"{days} 天 / {days}d"
+        return f"{minutes} 分钟"
+    hours, remaining = divmod(minutes, 60)
+    if hours < 24:
+        return f"{hours} 小时" if not remaining else f"{hours} 小时 {remaining} 分钟"
+    days, remaining_hours = divmod(hours, 24)
+    return f"{days} 天" if not remaining_hours else f"{days} 天 {remaining_hours} 小时"
 
 
 def _security_status(snapshot: SecuritySnapshot | None) -> list[str]:
+    """Return compact, Chinese-first risk rows for the Telegram card."""
     if snapshot is None:
         return [
-            "流动性 / Liquidity     ⏳ 暂无市场数据",
-            "持仓集中 / Top Holders  ⏳ 暂无安全数据",
-            "开发者 / Dev            ⏳ 未检测",
-            "合约 / Contract         ⏳ 未检测",
+            "流动性       ⏳ 暂无数据",
+            "持仓集中     ⏳ 暂未检测",
+            "开发者       ⏳ 暂未识别",
+            "合约安全     ⏳ 暂未检测",
         ]
-    liquidity = "⚠️" if snapshot.high_risk else "✅"
-    holders = "—"
+
+    liquidity = "⚠️ 偏低/有风险" if snapshot.high_risk else "✅ 正常"
+    holders = "⏳ 暂未检测"
     if snapshot.top_holder_percent is not None:
-        holders = "⚠️" if snapshot.top_holder_percent >= 30 else "✅"
-        holders += f" {snapshot.top_holder_percent:.1f}%"
-    dev = "✅ 已识别" if snapshot.creator_address else "⏳ 未识别"
-    contract = "⚠️ 有风险" if snapshot.high_risk else "✅" if snapshot.is_open_source is not None else "⏳ 未检测"
+        holder_icon = "⚠️" if snapshot.top_holder_percent >= 30 else "✅"
+        holders = f"{holder_icon} {snapshot.top_holder_percent:.1f}%"
+    dev = "✅ 已识别" if snapshot.creator_address else "⏳ 暂未识别"
+    if snapshot.high_risk:
+        contract = "⚠️ 存在风险"
+    elif snapshot.is_open_source is not None:
+        contract = "✅ 暂无明显风险"
+    else:
+        contract = "⏳ 暂未检测"
     return [
-        f"流动性 / Liquidity     {liquidity}",
-        f"持仓集中 / Top Holders  {holders}",
-        f"开发者 / Dev            {dev}",
-        f"合约 / Contract         {contract}",
+        f"流动性       {liquidity}",
+        f"持仓集中     {holders}",
+        f"开发者       {dev}",
+        f"合约安全     {contract}",
     ]
 
 
@@ -83,82 +90,99 @@ def _event_label(event: str) -> tuple[str, str]:
     }.get(event, ("交易", event))
 
 
+def _score_bar(score: int) -> str:
+    filled = max(0, min(10, round(score / 10)))
+    return "🟩" * filled + "⬜" * (10 - filled)
+
+
 def format_alert(activity: WalletActivity) -> str:
-    """Format a Chinese-first, bilingual Telegram alert from verified data."""
+    """Format a compact, polished, Chinese-first Telegram alert.
+
+    The transaction hash is intentionally omitted from the body and remains
+    available through the transaction button in ``alert_buttons``.
+    """
     event = activity.event_type
     icon = {"BUY": "🟢", "SELL": "🔴", "SWAP": "🔄"}.get(event, "🔔")
     event_cn, event_en = _event_label(event)
-    token = activity.symbol_for(activity.action_token) or "未知 Token / Unknown token"
+    token = activity.symbol_for(activity.action_token) or "未知 Token"
     quote = activity.symbol_for(activity.quote_token) if activity.quote_token else None
-    score = round((activity.signal.score if activity.signal else activity.confidence * 100))
+    score = round(activity.signal.score if activity.signal else activity.confidence * 100)
+    score = max(0, min(100, score))
     market = activity.market
     smart_money = activity.smart_money
 
     flow_lines: list[str] = []
-    for transfer in activity.transfers[:8]:
-        direction = (
-            "→ 发送 / Sent"
-            if transfer.from_address.lower() == activity.wallet.lower()
-            else "← 收到 / Received"
-            if transfer.to_address.lower() == activity.wallet.lower()
-            else "· 路径 / Route"
-        )
+    for index, transfer in enumerate(activity.transfers[:8]):
+        if transfer.from_address.lower() == activity.wallet.lower():
+            direction, branch = "支付", "├"
+        elif transfer.to_address.lower() == activity.wallet.lower():
+            direction, branch = "收到", "├"
+        else:
+            direction, branch = "路径", "├"
+        if index == min(len(activity.transfers), 8) - 1:
+            branch = "└"
         flow_lines.append(
-            f"{direction}: <code>{_esc(transfer.display_asset)}</code> "
-            f"{_esc(_fmt_number(activity.format_amount(transfer)))}"
+            f"{branch} <b>{direction}</b>  <code>{_esc(transfer.display_asset)}</code> "
+            f"<code>{_esc(_fmt_number(activity.format_amount(transfer)))}</code>"
         )
-    flow = "\n".join(flow_lines) or "· 暂无 ERC-20 Transfer 日志 / No ERC-20 transfers"
+    flow = "\n".join(flow_lines) or "└ 暂无 Token 转账明细"
 
     token_line = f"<b>${_esc(token)}</b>"
     if quote:
-        token_line += f"  /  <b>{_esc(quote)}</b>"
+        token_line += f"  ↔  <b>{_esc(quote)}</b>"
 
     smart_lines: list[str] = []
     if smart_money and smart_money.participants:
-        for participant in smart_money.participants[:6]:
-            value = f"  {_fmt_usd(participant.trade_value_usd)}" if participant.trade_value_usd else ""
-            smart_lines.append(f"• {_esc(participant.wallet_label)}{value}")
-        smart_lines.append(
-            f"<b>合计 / Total:</b> {_fmt_usd(smart_money.total_value_usd)} "
-            f"({smart_money.window_minutes} 分钟窗口 / {smart_money.window_minutes}m window)"
-        )
+        for index, participant in enumerate(smart_money.participants[:6]):
+            prefix = "└" if index == min(len(smart_money.participants), 6) - 1 else "├"
+            value = f"  {_fmt_usd(participant.trade_value_usd)}" if participant.trade_value_usd else "  —"
+            smart_lines.append(f"{prefix} {_esc(participant.wallet_label)} <b>{value}</b>")
+        smart_total = _fmt_usd(smart_money.total_value_usd)
+        window = f"{smart_money.window_minutes} 分钟窗口"
     else:
-        smart_lines.append(f"• {_esc(activity.wallet_label)}")
-        smart_lines.append("<b>合计 / Total:</b> —")
+        smart_lines.append(f"└ {_esc(activity.wallet_label)}")
+        smart_total = "—"
+        window = "当前窗口"
 
-    route = _esc(activity.dex or "未知 DEX / Unknown DEX")
+    chain = _esc(activity.chain.upper())
+    dex = _esc(activity.dex) if activity.dex else "未知 DEX"
+    route_line = f"🧭 <b>路径：</b>{dex}"
     if activity.router_name:
-        route += f"\n<b>路由 / Router:</b> {_esc(activity.router_name)}"
-    market_lines = (
-        f"💰 <b>交易金额 / Trade Value:</b> {_fmt_usd(market.trade_value_usd) if market else '—'}\n"
-        f"📊 <b>市值 / Market Cap:</b> {_fmt_usd(market.market_cap_usd) if market else '—'}\n"
-        f"💧 <b>流动性 / Liquidity:</b> {_fmt_usd(market.liquidity_usd) if market else '—'}\n"
-        f"⏱ <b>交易对年龄 / Pair Age:</b> {_fmt_age(market.token_age_minutes) if market else '—'}"
-    )
-    source_line = f"\n<b>来源 / Source:</b> {_esc(activity.wallet_source)}" if activity.wallet_source else ""
-    reason_line = _esc(activity.analysis_reason) if activity.analysis_reason else "—"
+        route_line += f" · {_esc(activity.router_name)}"
+    source_line = f" · 来源：{_esc(activity.wallet_source)}" if activity.wallet_source else ""
+    reason_line = _esc(activity.analysis_reason) if activity.analysis_reason else "暂无补充判断"
+
+    market_lines = "\n".join([
+        f"💰 <b>交易金额</b>    {_fmt_usd(market.trade_value_usd) if market else '—'}",
+        f"📊 <b>当前市值</b>    {_fmt_usd(market.market_cap_usd) if market else '—'}",
+        f"💧 <b>流动性</b>      {_fmt_usd(market.liquidity_usd) if market else '—'}",
+        f"⏱ <b>交易对年龄</b>  {_fmt_age(market.token_age_minutes) if market else '—'}",
+    ])
+    risk_lines = "\n".join(_security_status(activity.security))
 
     return (
-        "🚨 <b>SMART MONEY ALERT / 交易提醒</b>\n\n"
-        "━━━━━━━━━━━━━━━━━━\n\n"
-        f"🧠 <b>钱包 / Wallet: {_esc(activity.wallet_label)}</b>{source_line}\n\n"
-        f"{icon} <b>{event_cn} / {event_en}</b>\n\n"
-        f"{token_line}\n\n"
-        f"<b>链 / Chain:</b> {_esc(activity.chain.upper())}\n"
-        f"<b>DEX:</b> {route}\n"
-        f"<b>判断 / Analysis:</b> {reason_line}\n\n"
+        "🚨 <b>SMART MONEY ALERT</b>\n"
+        "<i>智能资金异动提醒</i>\n\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        f"{icon} <b>{event_cn}信号</b>  ·  <code>{_esc(event_en)}</code>\n\n"
+        f"{token_line}\n"
+        f"<code>{chain}</code>  ·  {route_line}\n"
+        f"👤 <b>{_esc(activity.wallet_label)}</b>{source_line}\n"
+        f"📝 <b>判断：</b>{reason_line}\n\n"
         f"{market_lines}\n\n"
-        "📡 <b>资金流向 / Trade Flow</b>\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "📡 <b>交易明细</b>\n"
         f"{flow}\n\n"
-        "━━━━━━━━━━━━━━━━━━\n\n"
-        "👥 <b>Smart Money 聚合 / Aggregation</b>\n\n"
-        f"{chr(10).join(smart_lines)}\n\n"
-        "━━━━━━━━━━━━━━━━━━\n\n"
-        "🛡 <b>风险检查 / Risk Check</b>\n\n"
-        f"<code>{_esc(chr(10).join(_security_status(activity.security)))}</code>\n\n"
-        "━━━━━━━━━━━━━━━━━━\n\n"
-        f"⭐ <b>信号评分 / SIGNAL SCORE: {score} / 100</b>\n"
-        f"<b>交易哈希 / Tx:</b> <code>{_esc(activity.tx_hash)}</code>"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "👥 <b>Smart Money 共识</b>\n"
+        f"{chr(10).join(smart_lines)}\n"
+        f"<b>合计：</b> {smart_total}  ·  {window}\n\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "🛡 <b>风险概览</b>\n"
+        f"<code>{_esc(risk_lines)}</code>\n\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        f"⭐ <b>信号评分  {score} / 100</b>\n"
+        f"{_score_bar(score)}"
     )
 
 
@@ -166,12 +190,12 @@ def alert_buttons(activity: WalletActivity) -> dict[str, Any]:
     buttons: list[list[dict[str, str]]] = []
     if activity.action_token and activity.chain.lower() == "bsc":
         buttons.append([
-            {"text": "📊 图表 / Chart", "url": f"https://dexscreener.com/bsc/{activity.action_token}"},
-            {"text": "📄 合约 / Contract", "url": f"https://bscscan.com/token/{activity.action_token}"},
+            {"text": "📈 看图", "url": f"https://dexscreener.com/bsc/{activity.action_token}"},
+            {"text": "📄 合约", "url": f"https://bscscan.com/token/{activity.action_token}"},
         ])
     buttons.append([
-        {"text": "👛 钱包 / Wallet", "url": activity.wallet_url},
-        {"text": "🔗 交易 / Tx", "url": activity.explorer_url},
+        {"text": "👛 钱包", "url": activity.wallet_url},
+        {"text": "🔗 交易详情", "url": activity.explorer_url},
     ])
     return {"inline_keyboard": buttons}
 

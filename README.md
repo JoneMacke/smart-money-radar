@@ -89,18 +89,17 @@ BSC 的 Router、Factory 与报价币配置位于 `config/dexes.yaml`。
 
 ## Telegram 告警格式
 
-BUY / SELL 告警现在使用 HTML 格式，包含：
+BUY / SELL 告警现在使用紧凑的 HTML 卡片格式，以中文为主，包含：
 
-- 钱包标签与来源
-- BUY / SELL / SWAP 类型
-- action token 与报价币
-- Token 流入流出数量
-- DEX 与 Router
-- 解析置信度 / Signal Score
-- Transfer、Token metadata、DEX route、Contract identity 风险快照
-- Chart、Contract、Wallet、Transaction 快捷按钮
+- 清晰的买入 / 卖出信号标题与 Token 交易对
+- 钱包标签、来源、链、DEX 与 Router
+- 交易金额、当前市值、流动性、交易对年龄
+- 资金流向、Smart Money 共识与窗口合计
+- 流动性、持仓集中、开发者、合约安全风险概览
+- 0–100 信号评分与可视化评分条
+- 中文快捷按钮：看图、合约、钱包、交易详情
 
-没有价格源时不会伪造美元金额、Market Cap、Liquidity 或 Token Age；这些字段将在接入价格与风控数据源后显示。
+完整交易哈希不再放在正文中，仅通过底部“交易详情”按钮访问，减少视觉噪音。没有价格源时不会伪造美元金额、Market Cap、Liquidity 或 Token Age；缺失字段显示为 `—`。
 
 ## Telegram 告警过滤
 

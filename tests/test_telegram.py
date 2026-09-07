@@ -21,7 +21,14 @@ def test_alert_uses_actionable_flow_and_buttons():
     )
     text = format_alert(activity)
     assert "SMART MONEY ALERT" in text
-    assert "买入 / BUY" in text
-    assert "风险检查 / Risk Check" in text
+    assert "买入信号" in text
+    assert "风险概览" in text
+    assert "交易明细" in text
+    assert "交易哈希" not in text
+    assert activity.tx_hash not in text
     assert "BREW" in text and "0.25" in text
-    assert alert_buttons(activity)["inline_keyboard"][0][0]["url"].endswith(activity.action_token)
+    buttons = alert_buttons(activity)["inline_keyboard"]
+    assert buttons[0][0]["text"] == "📈 看图"
+    assert buttons[0][0]["url"].endswith(activity.action_token)
+    assert buttons[-1][1]["text"] == "🔗 交易详情"
+    assert buttons[-1][1]["url"].endswith(activity.tx_hash)

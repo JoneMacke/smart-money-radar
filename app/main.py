@@ -18,6 +18,8 @@ from app.services.security import GoPlusSecurityClient
 from app.database.repository import PostgresRepository, persist_safely
 from app.parsers.evm import activity_from_transaction
 
+logger = logging.getLogger(__name__)
+
 app = typer.Typer(no_args_is_help=True)
 console = Console()
 
@@ -126,7 +128,10 @@ def run() -> None:
                 activity = await enrich_activity(activity)
                 console.print(activity.short_text())
                 await persist_safely(repository, activity)
-                await notifier.send_alert(activity)
+                try:
+                    await notifier.send_alert(activity)
+                except Exception:  # noqa: BLE001
+                    logger.exception("Could not send Telegram alert for %s", activity.tx_hash)
 
         try:
             await asyncio.gather(consume("bsc"), consume("robinhood"))

@@ -150,14 +150,17 @@ class WalletActivity:
     def symbol_for(self, token: str | None) -> str | None:
         if not token:
             return None
-        transfer = next((item for item in self.transfers if item.token == token), None)
+        normalized = token.lower()
+        transfer = next((item for item in self.transfers if item.token.lower() == normalized), None)
+        if transfer and transfer.symbol:
+            return transfer.symbol
+        for pool in self.pair_swaps:
+            if pool.token0 and pool.token0.lower() == normalized:
+                return pool.token0_symbol or token
+            if pool.token1 and pool.token1.lower() == normalized:
+                return pool.token1_symbol or token
         if transfer:
             return transfer.display_asset
-        for pool in self.pair_swaps:
-            if pool.token0 == token:
-                return pool.token0_symbol or token
-            if pool.token1 == token:
-                return pool.token1_symbol or token
         return token
 
     def wallet_flows(self) -> tuple[list[TokenTransfer], list[TokenTransfer]]:

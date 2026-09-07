@@ -167,7 +167,17 @@ class TelegramNotifier:
             payload["reply_markup"] = reply_markup
         async with httpx.AsyncClient(timeout=20) as client:
             response = await client.post(url, json=payload)
-            response.raise_for_status()
+        if response.is_error:
+            try:
+                description = response.json().get("description")
+            except (TypeError, ValueError):
+                description = None
+            detail = description or response.reason_phrase or "unknown error"
+            # Do not call raise_for_status(): httpx includes the Bot URL in its
+            # exception text, which would leak the Bot Token into logs.
+            raise RuntimeError(
+                f"Telegram API request failed ({response.status_code}): {detail}"
+            )
 
     async def send_alert(self, activity: WalletActivity) -> None:
         await self.send(format_alert(activity), alert_buttons(activity))

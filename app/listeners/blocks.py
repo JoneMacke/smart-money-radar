@@ -56,5 +56,5 @@ async def watch_chain(
         except asyncio.CancelledError:
             raise
         except Exception as exc:  # noqa: BLE001
-            logger.warning("%s watcher disconnected: %s; retrying", chain, exc)
+            logger.warning("%s watcher disconnected: %r; retrying", chain, exc)
             await asyncio.sleep(retry_seconds)

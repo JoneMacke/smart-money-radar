@@ -53,7 +53,10 @@ class JsonRpcClient:
     async def subscribe_new_heads(self):
         if not self.ws_url:
             raise RpcError("WebSocket URL is not configured")
-        async with websockets.connect(self.ws_url, ping_interval=20, ping_timeout=20) as socket:
+        # Keep the subscription alive while a full block is being inspected. Some
+        # public RPC providers time out the client while the event loop is busy
+        # decoding a block, even though the connection itself is healthy.
+        async with websockets.connect(self.ws_url, ping_interval=20, ping_timeout=None) as socket:
             await socket.send(json.dumps({
                 "jsonrpc": "2.0", "id": 1, "method": "eth_subscribe", "params": ["newHeads"]
             }))

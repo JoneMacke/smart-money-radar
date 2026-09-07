@@ -1,8 +1,62 @@
-# Solana 钱包暂存配置
-# 当前 V0.1 只实现 BSC 与 Robinhood Chain（EVM）监听，Solana 地址已记录但暂未启动监控。
+# Solana wallet registry (recorded for the future Solana adapter).
+# The current runtime still listens only to EVM chains: BSC and Robinhood Chain.
 wallets:
   - label: Unipcs
     source: FOMO
     address: "2heJbC32Tpfcb3nbUb5ER61K11FGZVfVGtVnDm6LDogF"
+    chain: solana
+    weight: 1.0
+
+  - label: frank
+    source: FOMO
+    address: "498g1rVnFcnjBjpfw1xyqA1WvgQXUU8RWuELjxkjAayQ"
+    chain: solana
+    weight: 1.0
+
+  - label: Yeon
+    source: FOMO
+    address: "DHnrkgve2u4nGAmzSXdWoZSib8ksFea2xxz7N4asSrvR"
+    chain: solana
+    weight: 1.0
+
+  - label: point farm capital
+    source: FOMO
+    address: "Beqv6dzTcjV2eodo8RRXCiCcnSYrS1vkQKhfqwHXqeit"
+    chain: solana
+    weight: 1.0
+
+  - label: Avast
+    source: FOMO
+    address: "8xL8S7P4QLdTGRquHas8NP5EVjp2qUGbmSgrkh97mvmq"
+    chain: solana
+    weight: 1.0
+
+  - label: Ethermonk
+    source: FOMO
+    address: "2xUbYAVq1oJGj45d6JjnaYHAke3NQecUcqWvvVbwmYw8"
+    chain: solana
+    weight: 1.0
+
+  - label: rasmr
+    source: FOMO
+    address: "9CNyLECt2j8tnDhqxtjYk5HUhZ2b8Nwnyb7sfYN7vND2"
+    chain: solana
+    weight: 1.0
+
+  - label: PoorGoat
+    source: FOMO
+    address: "HDixbrzwwLXczhDBk1JVrurPQsuLE8FUKnW2pucSXN3o"
+    chain: solana
+    weight: 1.0
+
+  - label: DumbCrayonEate
+    source: FOMO
+    address: "5FGoPPj1nL8LCnfVnpTmreqQtqLuMXXAwuS1uahMrp8V"
+    chain: solana
+    weight: 1.0
+
+  - label: Salem
+    source: FOMO
+    address: "2yXwy5Dsa1XtEXcsrkFVRJeyuWD3qKkMN3pP3p5VTW3V"
     chain: solana
     weight: 1.0

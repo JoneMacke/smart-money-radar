@@ -5,32 +5,110 @@ wallets:
     chains: [robinhood]
     weight: 1.0
 
-  - label: test
-    source: GMGN
-    address: "0x5f72eac252211a8ccfde64cc15e2155468139220"
-    chains: [bsc]
-    weight: 1.0
-
-  - label: test02
-    source: GMGN
-    address: "0x4636565ac6352902403d1146c45492b8a5ebad55"
+  - label: frank
+    source: FOMO
+    address: "0x696d1265c8fc4f14797abebfae3c43ebfa9d8e28"
     chains: [robinhood]
     weight: 1.0
 
-  - label: test03
-    source: GMGN
-    address: "0xb01c92e0cfe2858bfb609abef7e6168c92b2ea0e"
+  - label: Yeon
+    source: FOMO
+    address: "0x172695ac783cc308fc3699e0a5d161494eb5ad58"
     chains: [robinhood]
     weight: 1.0
 
-  - label: test04
-    source: GMGN
-    address: "0x55f3422138e9fed0bd81351bff66c882550002e8"
+  - label: Avast
+    source: FOMO
+    address: "0xcc0c581613dfd4ace7c8686668427236f8bd5cc5"
     chains: [robinhood]
     weight: 1.0
 
-  - label: test05
+  - label: Ethermonk
+    source: FOMO
+    address: "0x2408ce75d217e3a70d6ca370c78c1b34d706f5a0"
+    chains: [robinhood]
+    weight: 1.0
+
+  - label: rasmr
+    source: FOMO
+    address: "0x2fbd041a069bb3d7099d55179169091cfeec4221"
+    chains: [robinhood]
+    weight: 1.0
+
+  - label: PoorGoat
+    source: FOMO
+    address: "0x9ce0cb4a193acbce0dca3283972341aed6f3f614"
+    chains: [robinhood]
+    weight: 1.0
+
+  - label: DumbCrayonEate
+    source: FOMO
+    address: "0x8f62a08537cede87d511aca6436274ab4ca080a3"
+    chains: [robinhood]
+    weight: 1.0
+
+  - label: Salem
+    source: FOMO
+    address: "0xb8f305f27ccc406373de0082cc06cb1d065504ea"
+    chains: [robinhood]
+    weight: 1.0
+
+  - label: Yeon
     source: GMGN
-    address: "0xd4d8a5f5ad99349ae53746926b077505ead139aa"
+    address: "0x54d209d9d224a615e0e5f0476644886897b75e45"
+    chains: [robinhood]
+    weight: 1.0
+
+  - label: "0x56"
+    source: GMGN
+    address: "0x5638484ba2d2f1d1d35020572b0aa439a9869192"
+    chains: [robinhood]
+    weight: 1.0
+
+  - label: Yeon02
+    source: GMGN
+    address: "0x4d0e5759e4f2af31b93b25277b77b7c59dbb1f9c"
+    chains: [robinhood, bsc]
+    weight: 1.0
+
+  - label: "0x77"
+    source: GMGN
+    address: "0x77acc36fcc41dc3bfb51441e003831c74d4ecaf0"
+    chains: [robinhood]
+    weight: 1.0
+
+  - label: A
+    source: GMGN
+    address: "0xca1a2fb7f3179d887504966b25d1606978adcd42"
+    chains: [robinhood]
+    weight: 1.0
+
+  - label: Nach
+    source: GMGN
+    address: "0xf41e3186861afb9840ea3c87f00366440a648320"
+    chains: [robinhood]
+    weight: 1.0
+
+  - label: "0x82"
+    source: GMGN
+    address: "0x82608cb7ba84322a7a0d4cc0df8f1d2d065877ef"
+    chains: [robinhood]
+    weight: 1.0
+
+  - label: "0xaf"
+    source: GMGN
+    address: "0xaf8fdd812e757292410073d4261a9d72151c3de7"
+    chains: [robinhood]
+    weight: 1.0
+
+  - label: "0xe8"
+    source: GMGN
+    address: "0xe85458669e58c9440c0045a034edf6d3110609c5"
+    chains: [robinhood]
+    weight: 1.0
+
+  - label: Birdshot
+    source: GMGN
+    address: "0xc0603f5cca3d74bc8049614f8089c5a165c3160e"
     chains: [robinhood]
     weight: 1.0

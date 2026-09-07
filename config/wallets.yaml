@@ -22,3 +22,15 @@ wallets:
     address: "0xb01c92e0cfe2858bfb609abef7e6168c92b2ea0e"
     chains: [robinhood]
     weight: 1.0
+
+  - label: test04
+    source: GMGN
+    address: "0x55f3422138e9fed0bd81351bff66c882550002e8"
+    chains: [robinhood]
+    weight: 1.0
+
+  - label: test05
+    source: GMGN
+    address: "0xd4d8a5f5ad99349ae53746926b077505ead139aa"
+    chains: [robinhood]
+    weight: 1.0

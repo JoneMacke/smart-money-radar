@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     robinhood_wss_url: str = ""
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
+    database_url: str = ""
     poll_interval_seconds: int = 5
     log_level: str = "INFO"
 

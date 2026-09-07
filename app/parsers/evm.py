@@ -6,7 +6,7 @@ from typing import Any
 
 from app.chains.rpc import JsonRpcClient
 from app.config import Wallet
-from app.models import WalletActivity
+from app.models import PoolActivity, WalletActivity
 from app.parsers.dex import analyze_bsc_transaction, enrich_bsc_analysis
 from app.parsers.token import parse_transfers
 
@@ -47,6 +47,9 @@ async def activity_from_transaction(
     reason = ""
     action_token = None
     quote_token = None
+    pair_swaps = []
+    route_inputs = []
+    route_outputs = []
 
     if chain.lower() == "bsc":
         analysis = analyze_bsc_transaction(wallet, tx, receipt)
@@ -59,6 +62,16 @@ async def activity_from_transaction(
         reason = analysis.reason
         action_token = analysis.action_token
         quote_token = analysis.quote_token
+        pair_swaps = [PoolActivity(
+            address=swap.pair, version=swap.version, sender=swap.sender, recipient=swap.recipient,
+            amount0_in=swap.amount0_in, amount1_in=swap.amount1_in,
+            amount0_out=swap.amount0_out, amount1_out=swap.amount1_out,
+            token0=swap.token0, token1=swap.token1,
+            token0_symbol=swap.token0_symbol, token1_symbol=swap.token1_symbol,
+            factory=swap.factory, protocol=swap.protocol,
+        ) for swap in analysis.pair_swaps]
+        route_inputs = analysis.route_inputs
+        route_outputs = analysis.route_outputs
     else:
         event_type = classify(wallet, tx, transfers)
 
@@ -72,7 +85,12 @@ async def activity_from_transaction(
         tx_from=tx_from,
         tx_to=tx.get("to"),
         native_value_wei=int(str(tx.get("value", "0x0")), 16),
+        wallet_source=wallet.source,
+        wallet_weight=wallet.weight,
         transfers=transfers,
+        pair_swaps=pair_swaps,
+        route_inputs=route_inputs,
+        route_outputs=route_outputs,
         event_type=event_type,
         dex=dex,
         router_name=router_name,

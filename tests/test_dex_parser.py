@@ -1,5 +1,7 @@
 from app.config import Wallet
-from app.parsers.dex import V2_SWAP_TOPIC, analyze_bsc_transaction, parse_v2_swaps
+from app.parsers.dex import (
+    PANCAKE_V3_SWAP_TOPIC, V2_SWAP_TOPIC, analyze_bsc_transaction, parse_v2_swaps, parse_v3_swaps,
+)
 from app.parsers.token import TRANSFER_TOPIC, parse_transfers
 
 WALLET = "0x1111111111111111111111111111111111111111"
@@ -7,6 +9,7 @@ OTHER = "0x3333333333333333333333333333333333333333"
 ROUTER = "0x4444444444444444444444444444444444444444"
 WBNB = "0xbb4cdb9cbd36b01bd1cbaebf2de08d9173bc095c"
 TOKEN = "0x2222222222222222222222222222222222222222"
+V3_PAIR = "0x7777777777777777777777777777777777777777"
 
 
 def word(value: int) -> str:
@@ -108,3 +111,24 @@ def test_canonical_and_observed_transfer_topics_are_parsed():
         transfer_log(TOKEN, OTHER, WALLET, 2000, topic=alias),
     ]}
     assert len(parse_transfers(receipt)) == 2
+def signed_word(value: int) -> str:
+    return f"{value % (1 << 256):064x}"
+
+def test_pancakeswap_v3_swap_payload_is_decoded():
+    receipt = {"logs": [{
+        "address": V3_PAIR,
+        "topics": [
+            PANCAKE_V3_SWAP_TOPIC,
+            "0x" + "0" * 24 + ROUTER[2:],
+            "0x" + "0" * 24 + OTHER[2:],
+        ],
+        "data": "0x" + "".join([
+            signed_word(1000), signed_word(-10), word(1), word(2),
+            word(3), word(4), signed_word(-5), word(6), word(7),
+        ]),
+    }]}
+    swaps = parse_v3_swaps(receipt)
+    assert len(swaps) == 1
+    assert swaps[0].version == "v3"
+    assert (swaps[0].amount0_in, swaps[0].amount1_out) == (1000, 10)
+    assert (swaps[0].amount1_in, swaps[0].amount0_out) == (0, 0)

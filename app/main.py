@@ -10,6 +10,7 @@ from app.chains.rpc import JsonRpcClient
 from app.config import Settings, load_wallets
 from app.listeners.blocks import watch_chain
 from app.notifiers.telegram import TelegramNotifier
+from app.database.repository import PostgresRepository, persist_safely
 from app.parsers.evm import activity_from_transaction
 
 app = typer.Typer(no_args_is_help=True)
@@ -97,18 +98,22 @@ def run() -> None:
     notifier = TelegramNotifier(settings.telegram_bot_token, settings.telegram_chat_id)
     rpc_by_chain = clients(settings)
 
-    async def consume(chain: str) -> None:
-        async for activity in watch_chain(
-            chain,
-            wallets,
-            rpc_by_chain[chain],
-            settings.poll_interval_seconds,
-        ):
-            console.print(activity.short_text())
-            await notifier.send(activity.short_text())
-
     async def run_all() -> None:
-        await asyncio.gather(consume("bsc"), consume("robinhood"))
+        repository = await PostgresRepository.create(settings.database_url)
+
+        async def consume(chain: str) -> None:
+            async for activity in watch_chain(
+                chain, wallets, rpc_by_chain[chain], settings.poll_interval_seconds
+            ):
+                console.print(activity.short_text())
+                await persist_safely(repository, activity)
+                await notifier.send_alert(activity)
+
+        try:
+            await asyncio.gather(consume("bsc"), consume("robinhood"))
+        finally:
+            if repository:
+                await repository.close()
 
     asyncio.run(run_all())
 

@@ -1,17 +1,29 @@
 routers:
   - address: "0x10ed43c718714eb63d5aa57b78b54704e256024e"
     name: PancakeSwap V2 Router
-    kind: router
+    kind: router-v2
   - address: "0x13f4ea83d0bd40e75c8222255bc855a974568dd4"
     name: PancakeSwap Smart Router
     kind: smart-router
+  - address: "0x1b81d678ffb9c0263b24a97847620c99d213eb14"
+    name: PancakeSwap V3 Swap Router
+    kind: router-v3
   - address: "0x1de460f363af910f51726def188f9004276bf4bc"
     name: Observed BSC Aggregator
     kind: aggregator
+  - address: "0x0eb6949e725a295ecb3beacfc3766610bc970bef"
+    name: Biswap Router
+    kind: router-v2
 
 factories:
   - address: "0xca143ce32fe78f1f7019d7d551a6402fc5350c73"
     name: PancakeSwap V2
+    kind: v2
+  - address: "0x0bfbcf9fa4f9c56b0f40a671ad40e0805a091865"
+    name: PancakeSwap V3
+    kind: v3
+  - address: "0x858e3312ed3a876947ea49d572a7c42de08af7ee"
+    name: Biswap V2
     kind: v2
 
 quote_tokens:

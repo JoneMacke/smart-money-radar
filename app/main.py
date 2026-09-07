@@ -15,6 +15,7 @@ from app.services.aggregation import SmartMoneyAggregator
 from app.services.market import DexScreenerClient
 from app.services.scoring import calculate_signal
 from app.services.security import GoPlusSecurityClient
+from app.services.alerts import should_send_alert
 from app.database.repository import PostgresRepository, persist_safely
 from app.parsers.evm import activity_from_transaction
 
@@ -128,10 +129,22 @@ def run() -> None:
                 activity = await enrich_activity(activity)
                 console.print(activity.short_text())
                 await persist_safely(repository, activity)
-                try:
-                    await notifier.send_alert(activity)
-                except Exception:  # noqa: BLE001
-                    logger.exception("Could not send Telegram alert for %s", activity.tx_hash)
+                if should_send_alert(
+                    activity,
+                    settings.min_alert_score,
+                    settings.alert_event_types,
+                ):
+                    try:
+                        await notifier.send_alert(activity)
+                    except Exception:  # noqa: BLE001
+                        logger.exception("Could not send Telegram alert for %s", activity.tx_hash)
+                else:
+                    logger.debug(
+                        "Telegram alert suppressed for %s: event=%s score=%.1f",
+                        activity.tx_hash,
+                        activity.event_type,
+                        activity.signal.score if activity.signal else activity.confidence * 100,
+                    )
 
         try:
             await asyncio.gather(consume("bsc"), consume("robinhood"))

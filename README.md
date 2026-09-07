@@ -58,6 +58,8 @@ docker compose up --build
 - `POLL_INTERVAL_SECONDS`（WebSocket 断线后的重试间隔）
 - `MARKET_DATA_ENABLED` / `SECURITY_DATA_ENABLED`
 - `MARKET_DATA_TIMEOUT_SECONDS` / `AGGREGATION_WINDOW_MINUTES`
+- `MIN_ALERT_SCORE`（Telegram 最低推送分数，默认 60）
+- `ALERT_EVENT_TYPES`（Telegram 推送事件类型，默认 `BUY,SELL,SWAP`；其他活动仍会保存到 PostgreSQL）
 
 ## 说明：Solana
 
@@ -99,6 +101,10 @@ BUY / SELL 告警现在使用 HTML 格式，包含：
 - Chart、Contract、Wallet、Transaction 快捷按钮
 
 没有价格源时不会伪造美元金额、Market Cap、Liquidity 或 Token Age；这些字段将在接入价格与风控数据源后显示。
+
+## Telegram 告警过滤
+
+Telegram 默认只推送 `BUY`、`SELL`、`SWAP`，并且 Signal Score 必须达到 `MIN_ALERT_SCORE`（默认 60）。`CONTRACT_CALL`、`TRANSFER` 等低行动价值活动仍会写入 PostgreSQL，但不会发送 Telegram，从而减少提醒噪音。
 
 ## PostgreSQL 持久化
 

@@ -22,6 +22,8 @@ class Settings(BaseSettings):
     security_data_enabled: bool = True
     market_data_timeout_seconds: int = 12
     aggregation_window_minutes: int = 60
+    min_alert_score: float = 60.0
+    alert_event_types: str = "BUY,SELL,SWAP"
     poll_interval_seconds: int = 5
     log_level: str = "INFO"
 

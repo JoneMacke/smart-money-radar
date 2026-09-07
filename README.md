@@ -63,3 +63,21 @@ docker compose up --build
 ## 下一步
 
 V0.2 将加入 PostgreSQL 持久化、同币种多钱包聚合和信号评分；V0.3 再接入 DEX 路由解析、新币和 Dev 风控。Solana 适配器可作为后续跨链扩展加入。
+
+## 历史交易解析验证
+
+可以用当前解析器检查任意已确认交易：
+
+```powershell
+python -m app.main inspect-tx 0x交易哈希 --wallet test --chain bsc
+```
+
+输出会包含：
+
+- BUY / SELL / SWAP 分类与置信度
+- Router 名称
+- Pair 所属 DEX/Factory
+- action token 与 quote token
+- Token symbol、decimals 和格式化后的数量
+
+BSC 的 Router、Factory 与报价币配置位于 `config/dexes.yaml`。

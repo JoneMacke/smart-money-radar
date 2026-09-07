@@ -10,6 +10,7 @@ from app.chains.rpc import JsonRpcClient
 from app.config import Settings, load_wallets
 from app.listeners.blocks import watch_chain
 from app.notifiers.telegram import TelegramNotifier
+from app.parsers.evm import activity_from_transaction
 
 app = typer.Typer(no_args_is_help=True)
 console = Console()
@@ -41,6 +42,44 @@ def health() -> None:
     asyncio.run(run())
 
 
+@app.command("inspect-tx")
+def inspect_tx(
+    tx_hash: str,
+    wallet_label: str = typer.Option(..., "--wallet", "-w"),
+    chain: str = typer.Option("bsc", "--chain", "-c"),
+) -> None:
+    """Inspect one historical transaction with the current parser."""
+    settings = Settings()
+    wallets = load_wallets()
+    wallet = next((item for item in wallets if item.label.lower() == wallet_label.lower()), None)
+    if not wallet:
+        raise typer.BadParameter(f"Unknown wallet label: {wallet_label}")
+    if chain not in wallet.chains:
+        raise typer.BadParameter(f"Wallet {wallet.label} is not configured for {chain}")
+
+    async def run() -> None:
+        rpc = clients(settings)[chain]
+        tx = await rpc.call("eth_getTransactionByHash", [tx_hash])
+        if not tx:
+            raise typer.BadParameter(f"Transaction not found: {tx_hash}")
+        block_number = int(str(tx["blockNumber"]), 16)
+        block = await rpc.get_block(block_number)
+        activity = await activity_from_transaction(
+            chain,
+            wallet,
+            tx,
+            int(str(block["timestamp"]), 16),
+            rpc,
+        )
+        if activity is None:
+            raise typer.BadParameter(
+                f"Transaction sender does not match wallet {wallet.label}"
+            )
+        console.print(activity.short_text())
+
+    asyncio.run(run())
+
+
 @app.command()
 def run() -> None:
     """Run the read-only wallet watcher."""
@@ -53,7 +92,6 @@ def run() -> None:
         level=getattr(logging, settings.log_level.upper(), logging.INFO),
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
-    # RPC request logging is noisy; watcher warnings and matched activities remain visible.
     logging.getLogger("httpx").setLevel(logging.WARNING)
 
     notifier = TelegramNotifier(settings.telegram_bot_token, settings.telegram_chat_id)

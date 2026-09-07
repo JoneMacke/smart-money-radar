@@ -10,7 +10,7 @@ import websockets
 
 logger = logging.getLogger(__name__)
 
-TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a9df523b3ef"
+TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 
 
 class RpcError(RuntimeError):

@@ -7,7 +7,7 @@ from typing import Any
 from app.chains.rpc import JsonRpcClient
 from app.config import Wallet
 from app.models import WalletActivity
-from app.parsers.dex import analyze_bsc_transaction
+from app.parsers.dex import analyze_bsc_transaction, enrich_bsc_analysis
 from app.parsers.token import parse_transfers
 
 logger = logging.getLogger(__name__)
@@ -42,15 +42,23 @@ async def activity_from_transaction(
     receipt = await rpc.get_receipt(tx_hash) or {}
     transfers = parse_transfers(receipt)
     dex = None
+    router_name = None
     confidence = 0.0
     reason = ""
+    action_token = None
+    quote_token = None
+
     if chain.lower() == "bsc":
         analysis = analyze_bsc_transaction(wallet, tx, receipt)
+        analysis = await enrich_bsc_analysis(analysis, tx, rpc)
         transfers = analysis.transfers
         event_type = analysis.event_type
         dex = analysis.protocol
+        router_name = analysis.router_name
         confidence = analysis.confidence
         reason = analysis.reason
+        action_token = analysis.action_token
+        quote_token = analysis.quote_token
     else:
         event_type = classify(wallet, tx, transfers)
 
@@ -67,6 +75,9 @@ async def activity_from_transaction(
         transfers=transfers,
         event_type=event_type,
         dex=dex,
+        router_name=router_name,
+        action_token=action_token,
+        quote_token=quote_token,
         confidence=confidence,
         analysis_reason=reason,
     )

@@ -71,7 +71,7 @@ def test_sell_inferred_from_asset_out_and_quote_in():
 
 
 def test_complex_aggregator_flow_is_swap_not_contract_call():
-    alias = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    alias = TRANSFER_TOPIC
     receipt = {"logs": [
         transfer_log(TOKEN, OTHER, WALLET, 1000, topic=alias),
         transfer_log(TOKEN, WALLET, ROUTER, 100, topic=alias),
@@ -102,7 +102,7 @@ def test_v2_swap_payload_is_decoded():
 
 
 def test_canonical_and_observed_transfer_topics_are_parsed():
-    alias = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    alias = TRANSFER_TOPIC
     receipt = {"logs": [
         transfer_log(TOKEN, WALLET, OTHER, 1000),
         transfer_log(TOKEN, OTHER, WALLET, 2000, topic=alias),

@@ -4,49 +4,28 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from app.chains.rpc import TRANSFER_TOPIC, JsonRpcClient
+from app.chains.rpc import JsonRpcClient
 from app.config import Wallet
-from app.models import TokenTransfer, WalletActivity
+from app.models import WalletActivity
+from app.parsers.dex import analyze_bsc_transaction
+from app.parsers.token import parse_transfers
 
 logger = logging.getLogger(__name__)
 
 
-def _address(topic: str) -> str:
-    return "0x" + topic[-40:]
-
-
-def parse_transfers(receipt: dict[str, Any]) -> list[TokenTransfer]:
-    transfers: list[TokenTransfer] = []
-    for log in receipt.get("logs", []):
-        topics = log.get("topics", [])
-        if len(topics) < 3 or topics[0].lower() != TRANSFER_TOPIC:
-            continue
-        try:
-            transfers.append(TokenTransfer(
-                token=log["address"],
-                from_address=_address(topics[1]),
-                to_address=_address(topics[2]),
-                raw_amount=int(log.get("data", "0x0"), 16),
-                log_index=int(log.get("logIndex", "0x0"), 16),
-            ))
-        except (KeyError, ValueError):
-            logger.warning("Skipping malformed Transfer log: %s", log)
-    return transfers
-
-
-def classify(wallet: Wallet, tx: dict[str, Any], transfers: list[TokenTransfer]) -> str:
+def classify(wallet: Wallet, tx: dict[str, Any], transfers: list[Any]) -> str:
     wallet_address = wallet.normalized_address
     outgoing = any(t.from_address.lower() == wallet_address for t in transfers)
     incoming = any(t.to_address.lower() == wallet_address for t in transfers)
-    # This is deliberately conservative: a real BUY/SELL parser needs DEX-specific
-    # router/pair decoding and price context. V0.1 only labels unambiguous flows.
     if outgoing and incoming:
-        return "UNKNOWN"
+        return "SWAP"
     if incoming:
-        return "BUY"
+        return "TOKEN_IN"
     if outgoing:
-        return "SELL"
-    return "TRANSFER"
+        return "TOKEN_OUT"
+    if int(str(tx.get("value", "0x0")), 16) > 0:
+        return "NATIVE_SEND"
+    return "CONTRACT_CALL"
 
 
 async def activity_from_transaction(
@@ -57,23 +36,37 @@ async def activity_from_transaction(
     rpc: JsonRpcClient,
 ) -> WalletActivity | None:
     tx_from = str(tx.get("from", ""))
-    tx_to = tx.get("to")
     if tx_from.lower() != wallet.normalized_address:
         return None
     tx_hash = str(tx.get("hash"))
-    receipt = await rpc.get_receipt(tx_hash)
-    transfers = parse_transfers(receipt or {})
+    receipt = await rpc.get_receipt(tx_hash) or {}
+    transfers = parse_transfers(receipt)
+    dex = None
+    confidence = 0.0
+    reason = ""
+    if chain.lower() == "bsc":
+        analysis = analyze_bsc_transaction(wallet, tx, receipt)
+        transfers = analysis.transfers
+        event_type = analysis.event_type
+        dex = analysis.protocol
+        confidence = analysis.confidence
+        reason = analysis.reason
+    else:
+        event_type = classify(wallet, tx, transfers)
+
     return WalletActivity(
         chain=chain,
         wallet_label=wallet.label,
         wallet=wallet.address,
         tx_hash=tx_hash,
-        block_number=int(tx.get("blockNumber", "0x0"), 16),
+        block_number=int(str(tx.get("blockNumber", "0x0")), 16),
         timestamp=datetime.fromtimestamp(block_timestamp, tz=timezone.utc),
         tx_from=tx_from,
-        tx_to=tx_to,
-        native_value_wei=int(tx.get("value", "0x0"), 16),
+        tx_to=tx.get("to"),
+        native_value_wei=int(str(tx.get("value", "0x0")), 16),
         transfers=transfers,
-        event_type=classify(wallet, tx, transfers),
+        event_type=event_type,
+        dex=dex,
+        confidence=confidence,
+        analysis_reason=reason,
     )
-

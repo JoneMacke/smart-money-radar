@@ -42,6 +42,9 @@ def load_wallets(path: str | Path = "config/wallets.yaml") -> list[Wallet]:
     result: list[Wallet] = []
     for item in data.get("wallets", []):
         address = str(item.get("address", "")).strip()
+        # YAML 1.1 may parse an unquoted all-zero address as an integer.
+        if address.isdigit():
+            address = "0x" + format(int(address), "040x")
         if not address or address.lower() == "0x" + "0" * 40:
             continue
         result.append(

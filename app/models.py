@@ -1,19 +1,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Literal
 
-EventType = Literal["SWAP", "TOKEN_IN", "TOKEN_OUT", "CONTRACT_CALL", "NATIVE_SEND", "UNKNOWN"]
+from app.parsers.token import TokenTransfer
 
-
-@dataclass
-class TokenTransfer:
-    token: str
-    from_address: str
-    to_address: str
-    raw_amount: int
-    log_index: int
+EventType = Literal[
+    "BUY", "SELL", "SWAP", "TOKEN_IN", "TOKEN_OUT", "TRANSFER",
+    "CONTRACT_CALL", "NATIVE_SEND", "UNKNOWN",
+]
 
 
 @dataclass
@@ -29,6 +25,9 @@ class WalletActivity:
     native_value_wei: int
     transfers: list[TokenTransfer] = field(default_factory=list)
     event_type: EventType = "UNKNOWN"
+    dex: str | None = None
+    confidence: float = 0.0
+    analysis_reason: str = ""
 
     @property
     def explorer_url(self) -> str:
@@ -38,18 +37,20 @@ class WalletActivity:
 
     def short_text(self) -> str:
         transfer_lines = []
-        for item in self.transfers[:6]:
+        for item in self.transfers[:8]:
             direction = "→" if item.from_address.lower() == self.wallet.lower() else "←"
             transfer_lines.append(
-                f"{direction} {item.token[:10]}… amount(raw)={item.raw_amount}"
+                f"{direction} {item.token} amount(raw)={item.raw_amount}"
             )
         transfers = "\n".join(transfer_lines) or "无 ERC-20 Transfer 日志"
+        dex_line = f"DEX: {self.dex}\n" if self.dex else ""
+        confidence_line = f"Confidence: {self.confidence:.0%}\n" if self.confidence else ""
+        reason_line = f"判断: {self.analysis_reason}\n" if self.analysis_reason else ""
         return (
             f"{self.event_type} | {self.wallet_label} | {self.chain}\n"
+            f"{dex_line}{confidence_line}{reason_line}"
             f"Tx: {self.tx_hash}\n"
             f"Block: {self.block_number}\n"
             f"{transfers}\n"
             f"{self.explorer_url}"
         )
-
-

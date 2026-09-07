@@ -1,0 +1,25 @@
+services:
+  radar:
+    build: .
+    env_file: .env
+    volumes:
+      - ./config:/app/config:ro
+    depends_on:
+      - redis
+      - postgres
+    command: ["python", "-m", "app.main", "run"]
+
+  redis:
+    image: redis:7-alpine
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: radar
+      POSTGRES_USER: radar
+      POSTGRES_PASSWORD: radar_dev_only
+    volumes:
+      - radar_pgdata:/var/lib/postgresql/data
+
+volumes:
+  radar_pgdata:

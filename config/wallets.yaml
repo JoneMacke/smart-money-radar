@@ -1,0 +1,12 @@
+wallets:
+  - label: Unipcs
+    source: FOMO
+    address: "0x0a6ebed0155edb4b21d92ad02897a626cd90119e"
+    chains: [robinhood]
+    weight: 1.0
+
+  - label: test
+    source: GMGN
+    address: "0x5f72eac252211a8ccfde64cc15e2155468139220"
+    chains: [bsc]
+    weight: 1.0

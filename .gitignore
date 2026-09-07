@@ -1,0 +1,10 @@
+.venv/
+.venv-runtime/
+.uv-cache/
+.uv-python/
+__pycache__/
+*.py[cod]
+.env
+*.log
+.pytest_cache/
+.DS_Store

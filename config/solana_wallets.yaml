@@ -1,0 +1,8 @@
+# Solana 钱包暂存配置
+# 当前 V0.1 只实现 BSC 与 Robinhood Chain（EVM）监听，Solana 地址已记录但暂未启动监控。
+wallets:
+  - label: Unipcs
+    source: FOMO
+    address: "2heJbC32Tpfcb3nbUb5ER61K11FGZVfVGtVnDm6LDogF"
+    chain: solana
+    weight: 1.0

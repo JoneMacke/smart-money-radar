@@ -7,12 +7,16 @@ services:
     volumes:
       - ./config:/app/config:ro
     depends_on:
-      - redis
-      - postgres
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
     command: ["python", "-m", "app.main", "run"]
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
 
   postgres:
     image: postgres:16-alpine
@@ -20,6 +24,12 @@ services:
       POSTGRES_DB: radar
       POSTGRES_USER: radar
       POSTGRES_PASSWORD: radar_dev_only
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U radar -d radar"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
     volumes:
       - radar_pgdata:/var/lib/postgresql/data
 

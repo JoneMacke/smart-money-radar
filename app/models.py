@@ -31,6 +31,75 @@ class PoolActivity:
 
 
 @dataclass
+class MarketSnapshot:
+    price_usd: float | None = None
+    market_cap_usd: float | None = None
+    liquidity_usd: float | None = None
+    trade_value_usd: float | None = None
+    pair_created_at: datetime | None = None
+    pair_address: str | None = None
+    dex_id: str | None = None
+    source: str = ""
+
+    @property
+    def token_age_minutes(self) -> int | None:
+        if not self.pair_created_at:
+            return None
+        seconds = max(0, (datetime.now(self.pair_created_at.tzinfo) - self.pair_created_at).total_seconds())
+        return int(seconds // 60)
+
+
+@dataclass
+class SecuritySnapshot:
+    is_open_source: bool | None = None
+    is_proxy: bool | None = None
+    is_honeypot: bool | None = None
+    cannot_sell_all: bool | None = None
+    hidden_owner: bool | None = None
+    owner_change_balance: bool | None = None
+    buy_tax: float | None = None
+    sell_tax: float | None = None
+    top_holder_percent: float | None = None
+    creator_address: str | None = None
+    risk_flags: list[str] = field(default_factory=list)
+    source: str = ""
+
+    @property
+    def high_risk(self) -> bool:
+        return bool(
+            self.is_honeypot
+            or self.cannot_sell_all
+            or self.hidden_owner
+            or self.owner_change_balance
+            or (self.sell_tax is not None and self.sell_tax > 10)
+        )
+
+
+@dataclass
+class SmartMoneyParticipant:
+    wallet_label: str
+    wallet_address: str
+    event_type: str
+    trade_value_usd: float = 0.0
+
+
+@dataclass
+class SmartMoneyAggregate:
+    token: str
+    event_type: str
+    participants: list[SmartMoneyParticipant] = field(default_factory=list)
+    total_value_usd: float = 0.0
+    window_minutes: int = 60
+
+
+@dataclass
+class SignalScore:
+    score: float
+    components: dict[str, float] = field(default_factory=dict)
+    reasons: list[str] = field(default_factory=list)
+
+
+@dataclass
 class WalletActivity:
     chain: str
     wallet_label: str
@@ -54,12 +123,22 @@ class WalletActivity:
     quote_token: str | None = None
     confidence: float = 0.0
     analysis_reason: str = ""
+    market: MarketSnapshot | None = None
+    security: SecuritySnapshot | None = None
+    smart_money: SmartMoneyAggregate | None = None
+    signal: SignalScore | None = None
 
     @property
     def explorer_url(self) -> str:
         if self.chain == "bsc":
             return f"https://bscscan.com/tx/{self.tx_hash}"
         return f"https://explorer.mainnet.rpc.robinhood.com/tx/{self.tx_hash}"
+
+    @property
+    def wallet_url(self) -> str:
+        if self.chain == "bsc":
+            return f"https://bscscan.com/address/{self.wallet}"
+        return f"https://explorer.mainnet.rpc.robinhood.com/address/{self.wallet}"
 
     @staticmethod
     def format_amount(transfer: TokenTransfer) -> str:
@@ -100,6 +179,7 @@ class WalletActivity:
                 f"{direction} {item.display_asset} {self.format_amount(item)}"
             )
         transfers = "\n".join(transfer_lines) or "无 ERC-20 Transfer 日志"
+        score = self.signal.score if self.signal else self.confidence * 100
         dex_line = f"DEX: {self.dex}\n" if self.dex else ""
         router_line = f"Router: {self.router_name}\n" if self.router_name else ""
         token_line = ""
@@ -108,11 +188,10 @@ class WalletActivity:
             if self.quote_token:
                 token_line += f" / Quote: {self.symbol_for(self.quote_token)}"
             token_line += "\n"
-        confidence_line = f"Confidence: {self.confidence:.0%}\n" if self.confidence else ""
-        reason_line = f"判断: {self.analysis_reason}\n" if self.analysis_reason else ""
         return (
             f"{self.event_type} | {self.wallet_label} | {self.chain}\n"
-            f"{dex_line}{router_line}{token_line}{confidence_line}{reason_line}"
+            f"{dex_line}{router_line}{token_line}Score: {score:.0f}/100\n"
+            f"判断: {self.analysis_reason}\n"
             f"Tx: {self.tx_hash}\n"
             f"Block: {self.block_number}\n"
             f"{transfers}\n"

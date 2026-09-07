@@ -18,6 +18,10 @@ class Settings(BaseSettings):
     telegram_bot_token: str = ""
     telegram_chat_id: str = ""
     database_url: str = ""
+    market_data_enabled: bool = True
+    security_data_enabled: bool = True
+    market_data_timeout_seconds: int = 12
+    aggregation_window_minutes: int = 60
     poll_interval_seconds: int = 5
     log_level: str = "INFO"
 

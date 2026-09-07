@@ -1,13 +1,20 @@
 from __future__ import annotations
 
+import json
 import logging
-from collections.abc import Iterable
+from dataclasses import asdict, is_dataclass
 from typing import Any
 
 from app.models import WalletActivity
 
 logger = logging.getLogger(__name__)
 
+
+def _json(value: Any) -> str | None:
+    if value is None:
+        return None
+    payload = asdict(value) if is_dataclass(value) else value
+    return json.dumps(payload, default=str)
 
 class PostgresRepository:
     """Optional async PostgreSQL persistence; no database means the radar still runs."""
@@ -37,6 +44,7 @@ class PostgresRepository:
         await self.pool.close()
 
     async def save_activity(self, activity: WalletActivity) -> None:
+        signal = activity.signal
         async with self.pool.acquire() as connection:
             async with connection.transaction():
                 await connection.execute(
@@ -44,21 +52,28 @@ class PostgresRepository:
                     INSERT INTO radar_transactions
                       (tx_hash, chain, wallet_address, wallet_label, block_number,
                        observed_at, tx_from, tx_to, native_value_wei, event_type, dex,
-                       router_name, action_token, quote_token, confidence,
+                       router_name, action_token, quote_token, confidence, score,
+                       score_components, market_json, security_json, smart_money_json,
                        analysis_reason, explorer_url)
-                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
                     ON CONFLICT (tx_hash) DO UPDATE SET
                       event_type=EXCLUDED.event_type, dex=EXCLUDED.dex,
-                      router_name=EXCLUDED.router_name,
-                      action_token=EXCLUDED.action_token, quote_token=EXCLUDED.quote_token,
-                      confidence=EXCLUDED.confidence, analysis_reason=EXCLUDED.analysis_reason
+                      router_name=EXCLUDED.router_name, action_token=EXCLUDED.action_token,
+                      quote_token=EXCLUDED.quote_token, confidence=EXCLUDED.confidence,
+                      score=EXCLUDED.score, score_components=EXCLUDED.score_components,
+                      market_json=EXCLUDED.market_json, security_json=EXCLUDED.security_json,
+                      smart_money_json=EXCLUDED.smart_money_json,
+                      analysis_reason=EXCLUDED.analysis_reason
                     """,
                     activity.tx_hash, activity.chain, activity.wallet.lower(), activity.wallet_label,
                     activity.block_number, activity.timestamp, activity.tx_from.lower(),
                     activity.tx_to.lower() if activity.tx_to else None,
                     str(activity.native_value_wei), activity.event_type, activity.dex,
                     activity.router_name, activity.action_token, activity.quote_token,
-                    activity.confidence, activity.analysis_reason, activity.explorer_url,
+                    activity.confidence, signal.score if signal else None,
+                    _json(signal.components) if signal else None,
+                    _json(activity.market), _json(activity.security), _json(activity.smart_money),
+                    activity.analysis_reason, activity.explorer_url,
                 )
                 for transfer in activity.transfers:
                     await connection.execute(
@@ -133,11 +148,16 @@ class PostgresRepository:
                     )
                 await connection.execute(
                     """
-                    INSERT INTO radar_signals (tx_hash,wallet_label,event_type,score)
-                    VALUES ($1,$2,$3,$4)
-                    ON CONFLICT (tx_hash,event_type) DO UPDATE SET score=EXCLUDED.score
+                    INSERT INTO radar_signals
+                      (tx_hash,wallet_label,token_address,event_type,score,components,aggregate_json)
+                    VALUES ($1,$2,$3,$4,$5,$6,$7)
+                    ON CONFLICT (tx_hash,event_type) DO UPDATE SET
+                      score=EXCLUDED.score, components=EXCLUDED.components,
+                      aggregate_json=EXCLUDED.aggregate_json
                     """,
-                    activity.tx_hash, activity.wallet_label, activity.event_type, activity.confidence,
+                    activity.tx_hash, activity.wallet_label, activity.action_token,
+                    activity.event_type, signal.score if signal else activity.confidence * 100,
+                    _json(signal.components) if signal else None, _json(activity.smart_money),
                 )
 
 

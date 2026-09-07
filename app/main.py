@@ -10,6 +10,11 @@ from app.chains.rpc import JsonRpcClient
 from app.config import Settings, load_wallets
 from app.listeners.blocks import watch_chain
 from app.notifiers.telegram import TelegramNotifier
+from app.models import WalletActivity
+from app.services.aggregation import SmartMoneyAggregator
+from app.services.market import DexScreenerClient
+from app.services.scoring import calculate_signal
+from app.services.security import GoPlusSecurityClient
 from app.database.repository import PostgresRepository, persist_safely
 from app.parsers.evm import activity_from_transaction
 
@@ -98,6 +103,19 @@ def run() -> None:
     notifier = TelegramNotifier(settings.telegram_bot_token, settings.telegram_chat_id)
     rpc_by_chain = clients(settings)
 
+    market = DexScreenerClient(timeout=settings.market_data_timeout_seconds)
+    security = GoPlusSecurityClient(timeout=settings.market_data_timeout_seconds)
+    aggregator = SmartMoneyAggregator(settings.aggregation_window_minutes)
+
+    async def enrich_activity(activity: WalletActivity) -> WalletActivity:
+        if settings.market_data_enabled:
+            await market.enrich(activity)
+        if settings.security_data_enabled:
+            await security.enrich(activity)
+        activity.smart_money = aggregator.add(activity)
+        activity.signal = calculate_signal(activity)
+        return activity
+
     async def run_all() -> None:
         repository = await PostgresRepository.create(settings.database_url)
 
@@ -105,6 +123,7 @@ def run() -> None:
             async for activity in watch_chain(
                 chain, wallets, rpc_by_chain[chain], settings.poll_interval_seconds
             ):
+                activity = await enrich_activity(activity)
                 console.print(activity.short_text())
                 await persist_safely(repository, activity)
                 await notifier.send_alert(activity)

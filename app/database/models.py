@@ -17,9 +17,20 @@ CREATE TABLE IF NOT EXISTS radar_transactions (
     action_token TEXT,
     quote_token TEXT,
     confidence DOUBLE PRECISION NOT NULL DEFAULT 0,
+    score DOUBLE PRECISION,
+    score_components JSONB,
+    market_json JSONB,
+    security_json JSONB,
+    smart_money_json JSONB,
     analysis_reason TEXT NOT NULL DEFAULT '',
     explorer_url TEXT NOT NULL
 );
+
+ALTER TABLE radar_transactions ADD COLUMN IF NOT EXISTS score DOUBLE PRECISION;
+ALTER TABLE radar_transactions ADD COLUMN IF NOT EXISTS score_components JSONB;
+ALTER TABLE radar_transactions ADD COLUMN IF NOT EXISTS market_json JSONB;
+ALTER TABLE radar_transactions ADD COLUMN IF NOT EXISTS security_json JSONB;
+ALTER TABLE radar_transactions ADD COLUMN IF NOT EXISTS smart_money_json JSONB;
 
 CREATE TABLE IF NOT EXISTS radar_tokens (
     chain TEXT NOT NULL,
@@ -79,14 +90,23 @@ CREATE TABLE IF NOT EXISTS radar_signals (
     id BIGSERIAL PRIMARY KEY,
     tx_hash TEXT NOT NULL REFERENCES radar_transactions(tx_hash) ON DELETE CASCADE,
     wallet_label TEXT NOT NULL,
+    token_address TEXT,
     event_type TEXT NOT NULL,
     score DOUBLE PRECISION NOT NULL,
+    components JSONB,
+    aggregate_json JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (tx_hash, event_type)
 );
 
+ALTER TABLE radar_signals ADD COLUMN IF NOT EXISTS token_address TEXT;
+ALTER TABLE radar_signals ADD COLUMN IF NOT EXISTS components JSONB;
+ALTER TABLE radar_signals ADD COLUMN IF NOT EXISTS aggregate_json JSONB;
+
 CREATE INDEX IF NOT EXISTS idx_radar_transactions_wallet_time
     ON radar_transactions (wallet_address, observed_at DESC);
+CREATE INDEX IF NOT EXISTS idx_radar_transactions_action_token_time
+    ON radar_transactions (chain, action_token, observed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_radar_signals_created_at
     ON radar_signals (created_at DESC);
 """

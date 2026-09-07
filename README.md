@@ -56,6 +56,8 @@ docker compose up --build
 - `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID`（可选）
 - `DATABASE_URL`（可选；配置后启用 PostgreSQL 持久化）
 - `POLL_INTERVAL_SECONDS`（WebSocket 断线后的重试间隔）
+- `MARKET_DATA_ENABLED` / `SECURITY_DATA_ENABLED`
+- `MARKET_DATA_TIMEOUT_SECONDS` / `AGGREGATION_WINDOW_MINUTES`
 
 ## 说明：Solana
 
@@ -63,7 +65,7 @@ docker compose up --build
 
 ## 下一步
 
-V0.2 将继续加入同币种多钱包聚合、价格估值和信号评分；Solana 适配器可作为后续跨链扩展加入。
+价格、流动性、合约风控和 Smart Money 聚合已接入；后续可继续完善 Solana 适配器、更多 DEX 专属事件和后台 Dashboard。
 
 ## 历史交易解析验证
 
@@ -114,3 +116,14 @@ Docker Compose 中的 PostgreSQL 默认连接串已经写入 `.env.example`。�
 ## BSC DEX 与 V3
 
 DEX 注册表位于 `config/dexes.yaml`，当前包括 PancakeSwap V2、PancakeSwap V3、Biswap V2、PancakeSwap Smart Router 与已观察到的聚合 Router。解析器支持 Uniswap-compatible / PancakeSwap V3 的 `Swap` 事件，并与现有 V2 Pair 路由统一分类。
+
+## 市场数据与完整评分
+
+启动监听时会按需调用公共只读数据源：
+
+- DexScreener：价格、Market Cap、Liquidity、Pair Age、交易估值
+- GoPlus Token Security：开源、代理、Honeypot、税率、Top Holder、Creator 等风险字段
+
+数据源不可用时，链上交易解析和 Telegram 告警仍会继续，缺失字段显示为 `—`，不会用估算值冒充真实数据。
+
+Smart Money 聚合默认按 `AGGREGATION_WINDOW_MINUTES`（默认 60 分钟）统计同一 Token、同一方向的多个监控钱包。完整 Signal Score 由方向解析、钱包权重、交易规模、Smart Money 共识、流动性和合约风险组成。

@@ -101,6 +101,8 @@ BUY / SELL 告警现在使用紧凑的 HTML 卡片格式，以中文为主，包
 
 完整交易哈希不再放在正文中，仅通过底部“交易详情”按钮访问，减少视觉噪音。没有价格源时不会伪造美元金额、Market Cap、Liquidity 或 Token Age；缺失字段显示为 `—`。
 
+监听同时使用 WebSocket 新区块订阅和 HTTP 区块高度轮询兜底。WebSocket 断线时会自动退避重连，并从最近已处理区块继续补齐，降低 RPC 连接抖动造成的漏监听风险。
+
 ## Telegram 告警过滤
 
 Telegram 默认只推送 `BUY`、`SELL`、`SWAP`，并且 Signal Score 必须达到 `MIN_ALERT_SCORE`（默认 60）。`CONTRACT_CALL`、`TRANSFER` 等低行动价值活动仍会写入 PostgreSQL，但不会发送 Telegram，从而减少提醒噪音。

@@ -37,6 +37,10 @@ class JsonRpcClient:
             raise RpcError(str(body["error"]))
         return body.get("result")
 
+    async def latest_block_number(self) -> int:
+        block = await self.call("eth_blockNumber")
+        return int(block, 16)
+
     async def health(self) -> dict[str, Any]:
         chain_id, block = await asyncio.gather(
             self.call("eth_chainId"), self.call("eth_blockNumber")

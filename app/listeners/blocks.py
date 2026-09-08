@@ -54,14 +54,25 @@ async def watch_chain(
         logger.warning("No wallets configured for %s", chain)
         return
 
-    try:
-        last_processed = await rpc.latest_block_number()
-        logger.info("%s watcher starting at block %s", chain, last_processed)
-    except Exception as exc:  # noqa: BLE001
-        # The first HTTP check can fail while a provider is coming up. Start
-        # from -1 and let the normal polling/reconnect loop recover.
-        logger.warning("%s initial block check failed: %r", chain, exc)
-        last_processed = -1
+    # Do not fall back to block -1 here: that would make a transient RPC
+    # failure look like a request to scan the entire chain from genesis.
+    # Retry the initial height check until the provider is reachable, then
+    # start at the current head (new blocks are handled from that point on).
+    backoff = max(1, retry_seconds)
+    while True:
+        try:
+            last_processed = await rpc.latest_block_number()
+            logger.info("%s watcher starting at block %s", chain, last_processed)
+            break
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "%s initial block check failed: %r; retrying in %ss",
+                chain, exc, backoff,
+            )
+            await asyncio.sleep(backoff)
+            backoff = min(backoff * 2, 60)
 
     state = {"target": last_processed}
     target_changed = asyncio.Event()
@@ -112,9 +123,21 @@ async def watch_chain(
                     "%s processing blocks %s-%s", chain, last_processed + 1, target
                 )
                 for block_number in range(last_processed + 1, target + 1):
-                    for activity in await activities_for_block(
-                        chain, block_number, chain_wallets, rpc
-                    ):
+                    while True:
+                        try:
+                            activities = await activities_for_block(
+                                chain, block_number, chain_wallets, rpc
+                            )
+                            break
+                        except asyncio.CancelledError:
+                            raise
+                        except Exception as exc:  # noqa: BLE001
+                            logger.warning(
+                                "%s failed to process block %s: %r; retrying in %ss",
+                                chain, block_number, exc, retry_seconds,
+                            )
+                            await asyncio.sleep(max(1, retry_seconds))
+                    for activity in activities:
                         yield activity
                     last_processed = block_number
             # A producer may have published a newer target while the range was

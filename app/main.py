@@ -27,8 +27,8 @@ console = Console()
 
 def clients(settings: Settings) -> dict[str, JsonRpcClient]:
     return {
-        "bsc": JsonRpcClient(settings.bsc_rpc_url, settings.bsc_wss_url),
-        "robinhood": JsonRpcClient(settings.robinhood_rpc_url, settings.robinhood_wss_url),
+        "bsc": JsonRpcClient(settings.bsc_rpc_url, settings.bsc_wss_url, rate_limit_cooldown_seconds=settings.rpc_rate_limit_cooldown_seconds, max_backoff_seconds=settings.rpc_max_backoff_seconds),
+        "robinhood": JsonRpcClient(settings.robinhood_rpc_url, settings.robinhood_wss_url, rate_limit_cooldown_seconds=settings.rpc_rate_limit_cooldown_seconds, max_backoff_seconds=settings.rpc_max_backoff_seconds),
     }
 
 
@@ -124,7 +124,14 @@ def run() -> None:
 
         async def consume(chain: str) -> None:
             async for activity in watch_chain(
-                chain, wallets, rpc_by_chain[chain], settings.poll_interval_seconds
+                chain,
+                wallets,
+                rpc_by_chain[chain],
+                max(30, settings.poll_interval_seconds),
+                settings.max_catchup_blocks,
+                settings.rpc_max_backoff_seconds,
+                repository.get_last_processed_block if repository else None,
+                repository.save_last_processed_block if repository else None,
             ):
                 activity = await enrich_activity(activity)
                 console.print(activity.short_text())
@@ -151,6 +158,9 @@ def run() -> None:
         finally:
             if repository:
                 await repository.close()
+            for chain_name, rpc in rpc_by_chain.items():
+                logger.info("%s RPC request stats: %s", chain_name, await rpc.stats())
+                await rpc.close()
 
     asyncio.run(run_all())
 

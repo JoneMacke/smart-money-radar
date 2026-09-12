@@ -53,7 +53,10 @@ async def activity_from_transaction(
 
     if chain.lower() == "bsc":
         analysis = analyze_bsc_transaction(wallet, tx, receipt)
-        analysis = await enrich_bsc_analysis(analysis, tx, rpc)
+        # Metadata and Pair/Router lookups are more expensive than the first-pass log decode.
+        # Skip them for ordinary transfers and contract calls to reduce RPC usage.
+        if analysis.event_type in {"BUY", "SELL", "SWAP"} or analysis.pair_swaps:
+            analysis = await enrich_bsc_analysis(analysis, tx, rpc)
         transfers = analysis.transfers
         event_type = analysis.event_type
         dex = analysis.protocol

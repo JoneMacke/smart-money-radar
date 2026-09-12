@@ -43,6 +43,27 @@ class PostgresRepository:
     async def close(self) -> None:
         await self.pool.close()
 
+    async def get_last_processed_block(self, chain: str) -> int | None:
+        async with self.pool.acquire() as connection:
+            value = await connection.fetchval(
+                "SELECT last_processed_block FROM radar_chain_state WHERE chain=$1",
+                chain.lower(),
+            )
+        return int(value) if value is not None else None
+
+    async def save_last_processed_block(self, chain: str, block_number: int) -> None:
+        async with self.pool.acquire() as connection:
+            await connection.execute(
+                """
+                INSERT INTO radar_chain_state (chain,last_processed_block)
+                VALUES ($1,$2)
+                ON CONFLICT (chain) DO UPDATE SET
+                  last_processed_block=EXCLUDED.last_processed_block,
+                  updated_at=NOW()
+                """,
+                chain.lower(), block_number,
+            )
+
     async def save_activity(self, activity: WalletActivity) -> None:
         signal = activity.signal
         async with self.pool.acquire() as connection:

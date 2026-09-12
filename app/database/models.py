@@ -99,9 +99,11 @@ CREATE TABLE IF NOT EXISTS radar_signals (
     UNIQUE (tx_hash, event_type)
 );
 
-ALTER TABLE radar_signals ADD COLUMN IF NOT EXISTS token_address TEXT;
-ALTER TABLE radar_signals ADD COLUMN IF NOT EXISTS components JSONB;
-ALTER TABLE radar_signals ADD COLUMN IF NOT EXISTS aggregate_json JSONB;
+CREATE TABLE IF NOT EXISTS radar_chain_state (
+    chain TEXT PRIMARY KEY,
+    last_processed_block BIGINT NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 CREATE INDEX IF NOT EXISTS idx_radar_transactions_wallet_time
     ON radar_transactions (wallet_address, observed_at DESC);

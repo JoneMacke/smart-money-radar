@@ -24,7 +24,11 @@ class Settings(BaseSettings):
     aggregation_window_minutes: int = 60
     min_alert_score: float = 60.0
     alert_event_types: str = "BUY,SELL,SWAP"
-    poll_interval_seconds: int = 5
+    # Polling is a fallback only. A healthy WebSocket does not poll.
+    poll_interval_seconds: int = 30
+    max_catchup_blocks: int = 20
+    rpc_rate_limit_cooldown_seconds: int = 300
+    rpc_max_backoff_seconds: int = 60
     log_level: str = "INFO"
 
 
@@ -49,7 +53,6 @@ def load_wallets(path: str | Path = "config/wallets.yaml") -> list[Wallet]:
     result: list[Wallet] = []
     for item in data.get("wallets", []):
         address = str(item.get("address", "")).strip()
-        # YAML 1.1 may parse an unquoted all-zero address as an integer.
         if address.isdigit():
             address = "0x" + format(int(address), "040x")
         if not address or address.lower() == "0x" + "0" * 40:

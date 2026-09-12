@@ -17,7 +17,7 @@ class GoPlusSecurityClient:
     def __init__(self, timeout: float = 12.0, cache_ttl_seconds: int = 300) -> None:
         self.timeout = timeout
         self.cache_ttl_seconds = cache_ttl_seconds
-        self._cache: dict[str, tuple[float, SecuritySnapshot]] = {}
+        self._cache: dict[str, tuple[float, SecuritySnapshot | None]] = {}
 
     async def snapshot(self, chain: str, token_address: str) -> SecuritySnapshot | None:
         if chain.lower() != "bsc":
@@ -38,6 +38,7 @@ class GoPlusSecurityClient:
         result_map = payload.get("result") or {}
         result = result_map.get(key) or result_map.get(token_address)
         if not isinstance(result, dict):
+            self._cache[key] = (time.monotonic(), None)
             return None
         snapshot = SecuritySnapshot(
             is_open_source=_bool(result.get("is_open_source")),

@@ -19,7 +19,7 @@ class DexScreenerClient:
     def __init__(self, timeout: float = 12.0, cache_ttl_seconds: int = 30) -> None:
         self.timeout = timeout
         self.cache_ttl_seconds = cache_ttl_seconds
-        self._cache: dict[tuple[str, str], tuple[float, MarketSnapshot]] = {}
+        self._cache: dict[tuple[str, str], tuple[float, MarketSnapshot | None]] = {}
         self._inflight: dict[tuple[str, str], asyncio.Task[MarketSnapshot | None]] = {}
 
     async def snapshot(self, chain: str, token_address: str) -> MarketSnapshot | None:
@@ -32,7 +32,10 @@ class DexScreenerClient:
             task = asyncio.create_task(self._load(*key))
             self._inflight[key] = task
         try:
-            return await task
+            result = await task
+            # Cache misses too, avoiding repeated public API calls for the same token.
+            self._cache[key] = (time.monotonic(), result)
+            return result
         finally:
             if task.done():
                 self._inflight.pop(key, None)

@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     max_catchup_blocks: int = 20
     rpc_rate_limit_cooldown_seconds: int = 300
     rpc_max_backoff_seconds: int = 60
+    log_scan_enabled: bool = True
+    candidate_concurrency: int = 8
+    block_batch_delay_seconds: float = 0.5
     log_level: str = "INFO"
 
 

@@ -34,6 +34,7 @@ class GoPlusSecurityClient:
                 payload = response.json()
         except (httpx.HTTPError, ValueError) as exc:
             logger.warning("GoPlus request failed for %s: %s", key, exc)
+            self._cache[key] = (time.monotonic(), None)
             return None
         result_map = payload.get("result") or {}
         result = result_map.get(key) or result_map.get(token_address)

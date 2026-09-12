@@ -129,9 +129,12 @@ def run() -> None:
                 rpc_by_chain[chain],
                 max(30, settings.poll_interval_seconds),
                 settings.max_catchup_blocks,
-                settings.rpc_max_backoff_seconds,
                 repository.get_last_processed_block if repository else None,
                 repository.save_last_processed_block if repository else None,
+                max_backoff_seconds=settings.rpc_max_backoff_seconds,
+                candidate_concurrency=settings.candidate_concurrency,
+                log_scan_enabled=settings.log_scan_enabled,
+                block_batch_delay_seconds=settings.block_batch_delay_seconds,
             ):
                 activity = await enrich_activity(activity)
                 console.print(activity.short_text())

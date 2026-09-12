@@ -55,7 +55,13 @@ docker compose up --build
 - `ROBINHOOD_RPC_URL` / `ROBINHOOD_WSS_URL`
 - `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID`（可选）
 - `DATABASE_URL`（可选；配置后启用 PostgreSQL 持久化）
-- `POLL_INTERVAL_SECONDS`（WebSocket 断线后的重试间隔）
+- `POLL_INTERVAL_SECONDS`（WebSocket 不可用时的 HTTP 兜底间隔；运行时最低按 30 秒处理）
+- `MAX_CATCHUP_BLOCKS`（重启或断线后的最大追赶区块数，默认 20）
+- `RPC_RATE_LIMIT_COOLDOWN_SECONDS`（RPC 返回 429/容量限制后的熔断冷却时间，默认 300 秒）
+- `RPC_MAX_BACKOFF_SECONDS`（WebSocket/HTTP 失败重连的最大退避时间，默认 60 秒）
+- `LOG_SCAN_ENABLED`（是否使用 `eth_getLogs` 筛选监控钱包，默认开启）
+- `CANDIDATE_CONCURRENCY`（候选交易并发解析数，默认 8）
+- `BLOCK_BATCH_DELAY_SECONDS`（实时新区块短暂合并窗口，默认 0.5 秒，减少连续区块的重复查询）
 - `MARKET_DATA_ENABLED` / `SECURITY_DATA_ENABLED`
 - `MARKET_DATA_TIMEOUT_SECONDS` / `AGGREGATION_WINDOW_MINUTES`
 - `MIN_ALERT_SCORE`（Telegram 最低推送分数，默认 60）
@@ -101,7 +107,7 @@ BUY / SELL 告警现在使用紧凑的 HTML 卡片格式，以中文为主，包
 
 完整交易哈希不再放在正文中，仅通过底部“交易详情”按钮访问，减少视觉噪音。没有价格源时不会伪造美元金额、Market Cap、Liquidity 或 Token Age；缺失字段显示为 `—`。
 
-监听同时使用 WebSocket 新区块订阅和 HTTP 区块高度轮询兜底。WebSocket 断线时会自动退避重连，并从最近已处理区块继续补齐，降低 RPC 连接抖动造成的漏监听风险。
+监听同时使用 WebSocket 新区块订阅和 HTTP 区块高度轮询兜底。实时新区块会经过短暂合并窗口，尽量用一次范围日志查询处理连续区块；WebSocket 断线时会自动退避重连，并从最近已处理区块继续补齐，降低 RPC 连接抖动造成的漏监听风险。eth_getLogs 不支持时才回退到完整区块扫描；临时超时或 RPC 错误会重试有界范围，不会扩大成高消耗的全量扫描。 当前筛选重点是 ERC-20 Transfer 相关活动；没有任何日志的纯原生币转账不会被日志模式捕获。
 
 ## Telegram 告警过滤
 

@@ -19,6 +19,10 @@ class RpcError(RuntimeError):
     """A sanitized RPC error that never contains the configured endpoint URL."""
 
 
+class RpcMethodUnsupportedError(RpcError):
+    """The provider does not implement the requested JSON-RPC method."""
+
+
 class RpcRateLimitError(RpcError):
     def __init__(self, message: str, retry_after: float) -> None:
         super().__init__(message)
@@ -49,6 +53,10 @@ class JsonRpcClient:
         self._client: httpx.AsyncClient | None = None
         self._circuit_open_until = 0.0
         self._rate_limit_logged = False
+        # None means unknown, True means supported, False means permanently
+        # unavailable for this provider. This avoids retrying unsupported methods
+        # on every scan interval.
+        self._logs_supported: bool | None = None
         self._stats: Counter[str] = Counter()
         self._stats_lock = asyncio.Lock()
 
@@ -112,6 +120,9 @@ class JsonRpcClient:
         if "error" in body:
             error_text = str(body.get("error", "RPC provider error"))
             lowered = error_text.lower()
+            if "-32601" in lowered or "method not found" in lowered or "method does not exist" in lowered or "not implemented" in lowered or "unsupported method" in lowered or "method is not supported" in lowered:
+                await self._count("unsupported_methods")
+                raise RpcMethodUnsupportedError("RPC provider does not support this method")
             if "429" in lowered or "too many requests" in lowered or "capacity limit" in lowered or "rate limit" in lowered:
                 await self._open_circuit("RPC provider capacity/rate limit reached")
                 raise RpcRateLimitError(
@@ -149,9 +160,26 @@ class JsonRpcClient:
         )
         return {"chain_id": int(chain_id, 16), "latest_block": int(block, 16)}
 
-    async def get_block(self, block_number: int) -> dict[str, Any]:
+    async def get_block(self, block_number: int, full_transactions: bool = True) -> dict[str, Any]:
         block = hex(block_number)
-        return await self.call("eth_getBlockByNumber", [block, True])
+        return await self.call("eth_getBlockByNumber", [block, full_transactions])
+
+    async def get_logs(self, from_block: int, to_block: int, topics: list[Any]) -> list[dict[str, Any]]:
+        if self._logs_supported is False:
+            raise RpcMethodUnsupportedError("RPC provider does not support eth_getLogs")
+        try:
+            result = await self.call(
+                "eth_getLogs",
+                [{"fromBlock": hex(from_block), "toBlock": hex(to_block), "topics": topics}],
+            )
+        except RpcMethodUnsupportedError:
+            self._logs_supported = False
+            raise
+        self._logs_supported = True
+        return result if isinstance(result, list) else []
+
+    async def get_transaction(self, tx_hash: str) -> dict[str, Any] | None:
+        return await self.call("eth_getTransactionByHash", [tx_hash])
 
     async def get_receipt(self, tx_hash: str) -> dict[str, Any]:
         return await self.call("eth_getTransactionReceipt", [tx_hash])
